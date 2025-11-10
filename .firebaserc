@@ -1,5 +1,7 @@
 {
   "projects": {
-    "default": "messengerchat-a399a"
-  }
+    "default": "libertas-vn04"
+  },
+  "targets": {},
+  "etags": {}
 }

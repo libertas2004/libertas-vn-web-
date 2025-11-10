@@ -231,35 +231,12 @@
             align-items: center;
             justify-content: center;
             gap: 10px;
-            margin-bottom: 15px;
+            margin-bottom: 20px;
         }
 
         .btn-google:hover {
             border-color: #667eea;
             box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        }
-
-        .btn-facebook {
-            width: 100%;
-            padding: 14px;
-            background: #1877f2;
-            color: white;
-            border: none;
-            border-radius: 10px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-
-        .btn-facebook:hover {
-            background: #166fe5;
-            box-shadow: 0 4px 12px rgba(24,119,242,0.3);
         }
 
         .divider {
@@ -415,13 +392,6 @@
                 Đăng nhập bằng Google
             </button>
 
-            <button class="btn-facebook" onclick="handleFacebookLogin()">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-                </svg>
-                Đăng nhập bằng Facebook
-            </button>
-
             <div class="divider">
                 <span>hoặc</span>
             </div>
@@ -459,13 +429,6 @@
                     <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
                 </svg>
                 Đăng ký bằng Google
-            </button>
-
-            <button class="btn-facebook" onclick="handleFacebookLogin()">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-                </svg>
-                Đăng ký bằng Facebook
             </button>
 
             <div class="divider">
@@ -532,7 +495,6 @@
             signInWithEmailAndPassword,
             signInWithPopup,
             GoogleAuthProvider,
-            FacebookAuthProvider,
             sendPasswordResetEmail,
             updateProfile,
             onAuthStateChanged
@@ -540,18 +502,17 @@
 
         // THAY ĐỔI CONFIG NÀY BẰNG CONFIG CỦA BẠN
         const firebaseConfig = {
-  apiKey: "AIzaSyDwBvD4vTwY2H1T9-xhxiknBTK1GX5Nxkk",
-  authDomain: "libertas-vn04.firebaseapp.com",
-  projectId: "libertas-vn04",
-  storageBucket: "libertas-vn04.firebasestorage.app",
-  messagingSenderId: "806291122991",
-  appId: "1:806291122991:web:d3ce25ce98fb4d68fd8fda",
-  measurementId: "G-H2P44JHSN7"
-};
+          apiKey: "AIzaSyD45l5759nsyjTYHycJ39jIahOjYE9GlI0",
+          authDomain: "messengerchat-a399a.firebaseapp.com",
+          projectId: "messengerchat-a399a",
+          storageBucket: "messengerchat-a399a.firebasestorage.app",
+          messagingSenderId: "489753988553",
+          appId: "1:489753988553:web:69343d48f3e3c5b8272c18"
+        };
+
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const googleProvider = new GoogleAuthProvider();
-        const facebookProvider = new FacebookAuthProvider(); 
 
         // Kiểm tra trạng thái đăng nhập
         onAuthStateChanged(auth, (user) => {
@@ -678,48 +639,7 @@
                 }, 1500);
 
             } catch (error) {
-                let errorMessage = 'Đăng nhập Google thất bại';
-                if (error.code === 'auth/popup-closed-by-user') {
-                    errorMessage = 'Bạn đã đóng cửa sổ đăng nhập';
-                } else if (error.code === 'auth/cancelled-popup-request') {
-                    return; // Không hiển thị lỗi nếu user cancel
-                }
-                showModal('Lỗi', errorMessage);
-            }
-        };
-
-        // Đăng nhập Facebook
-        window.handleFacebookLogin = async function() {
-            try {
-                const result = await signInWithPopup(auth, facebookProvider);
-                
-                // Lấy thông tin user từ Facebook
-                const user = result.user;
-                console.log('Facebook User:', user);
-                
-                showModal('Thành Công', 'Đăng nhập Facebook thành công!');
-                
-                setTimeout(() => {
-                    const returnUrl = sessionStorage.getItem('returnUrl');
-                    sessionStorage.removeItem('returnUrl');
-                    window.location.href = returnUrl || 'index.html';
-                }, 1500);
-
-            } catch (error) {
-                console.error('Facebook Login Error:', error);
-                let errorMessage = 'Đăng nhập Facebook thất bại';
-                
-                if (error.code === 'auth/popup-closed-by-user') {
-                    errorMessage = 'Bạn đã đóng cửa sổ đăng nhập';
-                } else if (error.code === 'auth/account-exists-with-different-credential') {
-                    errorMessage = 'Email này đã được sử dụng với phương thức đăng nhập khác';
-                } else if (error.code === 'auth/cancelled-popup-request') {
-                    return; // Không hiển thị lỗi nếu user cancel
-                } else if (error.code === 'auth/unauthorized-domain') {
-                    errorMessage = 'Domain chưa được cấp quyền. Vui lòng thêm domain vào Firebase Console';
-                }
-                
-                showModal('Lỗi', errorMessage);
+                showModal('Lỗi', 'Đăng nhập Google thất bại: ' + error.message);
             }
         };
 

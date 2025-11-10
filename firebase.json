@@ -1,6 +1,5 @@
 {
   "hosting": {
-    "site": "libertas-vn",
     "public": "public",
     "ignore": [
       "firebase.json",
