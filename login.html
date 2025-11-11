@@ -496,29 +496,46 @@
             signInWithPopup,
             GoogleAuthProvider,
             sendPasswordResetEmail,
+            sendEmailVerification,
             updateProfile,
             onAuthStateChanged
         } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+        import { 
+            getDatabase, 
+            ref, 
+            set, 
+            get,
+            update
+        } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
 
-        // THAY ĐỔI CONFIG NÀY BẰNG CONFIG CỦA BẠN
         const firebaseConfig = {
-          apiKey: "AIzaSyD45l5759nsyjTYHycJ39jIahOjYE9GlI0",
-          authDomain: "messengerchat-a399a.firebaseapp.com",
-          projectId: "messengerchat-a399a",
-          storageBucket: "messengerchat-a399a.firebasestorage.app",
-          messagingSenderId: "489753988553",
-          appId: "1:489753988553:web:69343d48f3e3c5b8272c18"
-        };
-
+  apiKey: "AIzaSyAcxsweOtv-jvAVew4kjjiaSjlWz00F30M",
+  authDomain: "libertas-04.firebaseapp.com",
+  databaseURL: "https://libertas-04-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "libertas-04",
+  storageBucket: "libertas-04.firebasestorage.app",
+  messagingSenderId: "315100108937",
+  appId: "1:315100108937:web:c1f73533fd87664a7d4e58"
+};
+        
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
+        const database = getDatabase(app);
         const googleProvider = new GoogleAuthProvider();
+        
+        // Cấu hình actionCodeSettings cho email verification và password reset
+        const actionCodeSettings = {
+            url: window.location.origin + '/verify-email.html',
+            handleCodeInApp: true
+        };
 
-        // Kiểm tra trạng thái đăng nhập
+        googleProvider.addScope('https://www.googleapis.com/auth/user.birthday.read');
+        googleProvider.addScope('https://www.googleapis.com/auth/user.gender.read');
+        googleProvider.addScope('https://www.googleapis.com/auth/userinfo.profile');
+
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 console.log('User đã đăng nhập:', user.email);
-                // Lưu thông tin user vào sessionStorage
                 sessionStorage.setItem('user', JSON.stringify({
                     uid: user.uid,
                     email: user.email,
@@ -556,20 +573,38 @@
                 registerBtn.disabled = true;
                 registerBtn.innerHTML = '<span class="loading-spinner"></span> Đang xử lý...';
 
-                // Tạo tài khoản Firebase
                 const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                const user = userCredential.user;
                 
-                // Cập nhật tên hiển thị
-                await updateProfile(userCredential.user, {
+                await updateProfile(user, {
                     displayName: `${lastName} ${firstName}`
                 });
 
-                showModal('Thành Công', 'Đăng ký thành công! Đang chuyển hướng...');
+                // Gửi email xác minh với link về trang verify-email.html
+                await sendEmailVerification(user, {
+                    url: window.location.origin + '/verify-email.html',
+                    handleCodeInApp: false
+                });
+
+                await set(ref(database, 'users/' + user.uid), {
+                    userID: user.uid,
+                    lastName: lastName,
+                    firstName: firstName,
+                    email: user.email,
+                    avatar: user.photoURL || '',
+                    birthDate: '',
+                    gender: '',
+                    provider: 'email',
+                    emailVerified: false,
+                    createdAt: Date.now(),
+                    lastLoginAt: Date.now()
+                });
+
+                showModal('Thành Công', 'Đăng ký thành công! Vui lòng kiểm tra email để xác minh tài khoản. Link xác minh sẽ chuyển bạn về trang web này.');
                 
                 setTimeout(() => {
-                    const returnUrl = sessionStorage.getItem('returnUrl');
-                    window.location.href = returnUrl || 'index.html';
-                }, 1500);
+                    showLoginForm();
+                }, 3000);
 
             } catch (error) {
                 let errorMessage = 'Đăng ký thất bại';
@@ -602,15 +637,30 @@
                 loginBtn.disabled = true;
                 loginBtn.innerHTML = '<span class="loading-spinner"></span> Đang đăng nhập...';
 
-                await signInWithEmailAndPassword(auth, email, password);
+                const userCredential = await signInWithEmailAndPassword(auth, email, password);
+                const user = userCredential.user;
+
+                // Cập nhật emailVerified trong database
+                await update(ref(database, 'users/' + user.uid), {
+                    lastLoginAt: Date.now(),
+                    emailVerified: user.emailVerified
+                });
                 
-                showModal('Thành Công', 'Đăng nhập thành công!');
-                
-                setTimeout(() => {
-                    const returnUrl = sessionStorage.getItem('returnUrl');
-                    sessionStorage.removeItem('returnUrl');
-                    window.location.href = returnUrl || 'index.html';
-                }, 1500);
+                if (!user.emailVerified) {
+                    showModal('Cảnh báo', 'Email chưa được xác minh. Vui lòng kiểm tra hộp thư để xác minh tài khoản.');
+                    setTimeout(() => {
+                        const returnUrl = sessionStorage.getItem('returnUrl');
+                        sessionStorage.removeItem('returnUrl');
+                        window.location.href = returnUrl || 'index.html';
+                    }, 2500);
+                } else {
+                    showModal('Thành Công', 'Đăng nhập thành công!');
+                    setTimeout(() => {
+                        const returnUrl = sessionStorage.getItem('returnUrl');
+                        sessionStorage.removeItem('returnUrl');
+                        window.location.href = returnUrl || 'index.html';
+                    }, 1500);
+                }
 
             } catch (error) {
                 let errorMessage = 'Đăng nhập thất bại';
@@ -618,6 +668,8 @@
                     errorMessage = 'Email hoặc mật khẩu không đúng';
                 } else if (error.code === 'auth/invalid-email') {
                     errorMessage = 'Email không hợp lệ';
+                } else if (error.code === 'auth/invalid-credential') {
+                    errorMessage = 'Email hoặc mật khẩu không đúng';
                 }
                 showModal('Lỗi', errorMessage);
             } finally {
@@ -630,7 +682,82 @@
         window.handleGoogleLogin = async function() {
             try {
                 const result = await signInWithPopup(auth, googleProvider);
-                showModal('Thành Công', 'Đăng nhập thành công!');
+                const user = result.user;
+                const credential = GoogleAuthProvider.credentialFromResult(result);
+                const accessToken = credential.accessToken;
+
+                const userRef = ref(database, 'users/' + user.uid);
+                const snapshot = await get(userRef);
+                
+                let birthDate = '';
+                let gender = '';
+                
+                try {
+                    const response = await fetch(
+                        'https://people.googleapis.com/v1/people/me?personFields=birthdays,genders,names',
+                        {
+                            headers: {
+                                'Authorization': `Bearer ${accessToken}`
+                            }
+                        }
+                    );
+                    const data = await response.json();
+                    
+                    if (data.birthdays && data.birthdays.length > 0) {
+                        const bd = data.birthdays[0].date;
+                        if (bd.year && bd.month && bd.day) {
+                            birthDate = `${bd.year}-${String(bd.month).padStart(2, '0')}-${String(bd.day).padStart(2, '0')}`;
+                        }
+                    }
+                    
+                    if (data.genders && data.genders.length > 0) {
+                        gender = data.genders[0].value;
+                    }
+                    
+                } catch (apiError) {
+                    console.log('Không thể lấy thông tin từ Google People API:', apiError);
+                }
+
+                const nameParts = user.displayName ? user.displayName.split(' ') : ['', ''];
+                const firstName = nameParts.pop() || '';
+                const lastName = nameParts.join(' ') || '';
+
+                if (!snapshot.exists()) {
+                    await set(userRef, {
+                        userID: user.uid,
+                        lastName: lastName,
+                        firstName: firstName,
+                        email: user.email,
+                        avatar: user.photoURL || '',
+                        birthDate: birthDate,
+                        gender: gender,
+                        provider: 'google',
+                        emailVerified: user.emailVerified,
+                        createdAt: Date.now(),
+                        lastLoginAt: Date.now()
+                    });
+                } else {
+                    const updateData = {
+                        lastLoginAt: Date.now(),
+                        emailVerified: user.emailVerified
+                    };
+                    
+                    if (user.photoURL) {
+                        updateData.avatar = user.photoURL;
+                    }
+                    
+                    const existingData = snapshot.val();
+                    if (birthDate && !existingData.birthDate) {
+                        updateData.birthDate = birthDate;
+                    }
+                    if (gender && !existingData.gender) {
+                        updateData.gender = gender;
+                    }
+                    
+                    await update(userRef, updateData);
+                }
+
+                showModal('Thành Công', 'Đăng nhập Google thành công!');
                 
                 setTimeout(() => {
                     const returnUrl = sessionStorage.getItem('returnUrl');
@@ -639,31 +766,67 @@
                 }, 1500);
 
             } catch (error) {
-                showModal('Lỗi', 'Đăng nhập Google thất bại: ' + error.message);
+                console.error('Google Login Error:', error);
+                let errorMessage = 'Đăng nhập Google thất bại';
+                
+                if (error.code === 'auth/popup-closed-by-user') {
+                    errorMessage = 'Bạn đã đóng cửa sổ đăng nhập';
+                } else if (error.code === 'auth/cancelled-popup-request') {
+                    return;
+                } else if (error.code === 'auth/unauthorized-domain') {
+                    errorMessage = 'Domain chưa được cấp quyền trong Firebase Console';
+                }
+                
+                showModal('Lỗi', errorMessage);
             }
         };
 
-        // Quên mật khẩu
+        // Quên mật khẩu - Gửi email với link về reset-password.html
         window.handleForgotPassword = async function(e) {
-            e.preventDefault();
+            if (e) e.preventDefault();
+            
             const email = document.getElementById('loginEmail').value.trim();
             
             if (!email) {
-                showModal('Lỗi', 'Vui lòng nhập email trước');
+                showModal('Lỗi', 'Vui lòng nhập email trước khi chọn "Quên mật khẩu"');
+                return;
+            }
+
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                showModal('Lỗi', 'Email không đúng định dạng');
                 return;
             }
 
             try {
-                await sendPasswordResetEmail(auth, email);
-                showModal('Thành Công', 'Email đặt lại mật khẩu đã được gửi!');
+                // Gửi email reset password với link về reset-password.html
+                await sendPasswordResetEmail(auth, email, {
+                    url: window.location.origin + '/reset-password.html',
+                    handleCodeInApp: false
+                });
+                showModal('Thành Công', 'Email đặt lại mật khẩu đã được gửi! Vui lòng kiểm tra hộp thư và click vào link để đặt lại mật khẩu. Link sẽ chuyển bạn về trang web này.');
             } catch (error) {
-                showModal('Lỗi', 'Không thể gửi email: ' + error.message);
+                console.error('Forgot password error:', error);
+                let errorMessage = 'Không thể gửi email đặt lại mật khẩu';
+                
+                if (error.code === 'auth/user-not-found') {
+                    errorMessage = 'Email này chưa được đăng ký';
+                } else if (error.code === 'auth/invalid-email') {
+                    errorMessage = 'Email không hợp lệ';
+                } else if (error.code === 'auth/too-many-requests') {
+                    errorMessage = 'Quá nhiều yêu cầu. Vui lòng thử lại sau';
+                }
+                
+                showModal('Lỗi', errorMessage);
             }
         };
 
-        // Enter để submit
         document.getElementById('loginPassword').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') handleLogin();
+        });
+        
+        document.getElementById('registerConfirmPassword').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') handleRegister();
         });
     </script>
 
