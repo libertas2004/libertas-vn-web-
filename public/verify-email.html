@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Xác Minh Email</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            width: 100%;
+            max-width: 500px;
+            animation: slideUp 0.5s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 40px 30px;
+            text-align: center;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .content {
+            padding: 40px 30px;
+            text-align: center;
+        }
+
+        .status-icon {
+            font-size: 80px;
+            margin-bottom: 20px;
+            animation: bounce 1s ease;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 6px solid #f3f3f3;
+            border-top: 6px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .message {
+            color: #333;
+            font-size: 16px;
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+
+        .message strong {
+            color: #667eea;
+        }
+
+        .success-box {
+            background: #d4edda;
+            border: 2px solid #c3e6cb;
+            color: #155724;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+
+        .error-box {
+            background: #f8d7da;
+            border: 2px solid #f5c6cb;
+            color: #721c24;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 14px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            margin-top: 20px;
+            transition: all 0.3s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .countdown {
+            color: #667eea;
+            font-weight: 600;
+            font-size: 18px;
+            margin-top: 10px;
+        }
+
+        .debug-info {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            font-size: 12px;
+            text-align: left;
+            color: #666;
+            word-break: break-all;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Xác Minh Email</h1>
+        </div>
+
+        <div class="content" id="verifyContent">
+            <div class="spinner"></div>
+            <div class="message">
+                <p>Đang xác minh email của bạn...</p>
+                <p>Vui lòng đợi trong giây lát.</p>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { 
+            getAuth, 
+            applyActionCode,
+            checkActionCode
+        } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+        import { 
+            getDatabase, 
+            ref, 
+            update
+        } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
+
+        const firebaseConfig = {
+          apiKey: "AIzaSyAcxsweOtv-jvAVew4kjjiaSjlWz00F30M",
+          authDomain: "libertas-04.firebaseapp.com",
+          databaseURL: "https://libertas-04-default-rtdb.asia-southeast1.firebasedatabase.app",
+          projectId: "libertas-04",
+          storageBucket: "libertas-04.firebasestorage.app",
+          messagingSenderId: "315100108937",
+          appId: "1:315100108937:web:c1f73533fd87664a7d4e58"
+        };
+        
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const database = getDatabase(app);
+
+        // Lấy oobCode từ URL - hỗ trợ nhiều format
+        const urlParams = new URLSearchParams(window.location.search);
+        let oobCode = urlParams.get('oobCode');
+        let mode = urlParams.get('mode');
+
+        // Debug: Hiển thị URL parameters
+        console.log('Full URL:', window.location.href);
+        console.log('Search params:', window.location.search);
+        console.log('oobCode:', oobCode);
+        console.log('mode:', mode);
+
+        // Kiểm tra nếu URL có format khác (từ Firebase deep link)
+        if (!oobCode) {
+            const hash = window.location.hash;
+            if (hash) {
+                const hashParams = new URLSearchParams(hash.substring(1));
+                oobCode = hashParams.get('oobCode');
+                mode = hashParams.get('mode');
+            }
+        }
+
+        async function verifyEmail() {
+            const content = document.getElementById('verifyContent');
+
+            if (!oobCode) {
+                content.innerHTML = `
+                    <div class="status-icon">❌</div>
+                    <div class="error-box">
+                        <h2 style="margin-bottom: 10px;">Link Không Hợp Lệ</h2>
+                        <p>Không tìm thấy mã xác minh trong URL.</p>
+                        <div class="debug-info">
+                            <strong>Thông tin debug:</strong><br>
+                            URL: ${window.location.href}<br>
+                            Search: ${window.location.search}<br>
+                            Hash: ${window.location.hash}
+                        </div>
+                    </div>
+                    <a href="login.html" class="btn">Quay lại đăng nhập</a>
+                `;
+                return;
+            }
+
+            try {
+                // Kiểm tra action code trước
+                const info = await checkActionCode(auth, oobCode);
+                console.log('Action code info:', info);
+
+                // Apply action code để xác minh email
+                await applyActionCode(auth, oobCode);
+
+                // Lấy email từ info
+                const email = info.data.email;
+
+                // Hiển thị thông báo thành công
+                content.innerHTML = `
+                    <div class="status-icon">✅</div>
+                    <div class="success-box">
+                        <h2 style="margin-bottom: 10px;">Xác Minh Thành Công!</h2>
+                        <p>Email <strong>${email}</strong> đã được xác minh thành công.</p>
+                        <p>Bạn có thể đăng nhập ngay bây giờ.</p>
+                    </div>
+                    <div class="message">
+                        <p>Bạn sẽ được chuyển hướng đến trang đăng nhập trong</p>
+                        <div class="countdown" id="countdown">5</div>
+                        <p>giây...</p>
+                    </div>
+                    <a href="login.html" class="btn">Đăng nhập ngay</a>
+                `;
+
+                // Đếm ngược và chuyển hướng
+                let seconds = 5;
+                const countdownEl = document.getElementById('countdown');
+                const countdownInterval = setInterval(() => {
+                    seconds--;
+                    if (countdownEl) {
+                        countdownEl.textContent = seconds;
+                    }
+                    if (seconds <= 0) {
+                        clearInterval(countdownInterval);
+                        window.location.href = 'login.html';
+                    }
+                }, 1000);
+
+            } catch (error) {
+                console.error('Verify email error:', error);
+                let errorMessage = 'Xác minh email thất bại';
+                let errorDetail = '';
+
+                if (error.code === 'auth/expired-action-code') {
+                    errorMessage = 'Link Đã Hết Hạn';
+                    errorDetail = 'Link xác minh email đã hết hạn. Vui lòng đăng nhập và yêu cầu gửi lại email xác minh.';
+                } else if (error.code === 'auth/invalid-action-code') {
+                    errorMessage = 'Link Không Hợp Lệ';
+                    errorDetail = 'Link xác minh email không hợp lệ hoặc đã được sử dụng.';
+                } else if (error.code === 'auth/user-disabled') {
+                    errorMessage = 'Tài Khoản Bị Vô Hiệu Hóa';
+                    errorDetail = 'Tài khoản của bạn đã bị vô hiệu hóa.';
+                } else if (error.code === 'auth/user-not-found') {
+                    errorMessage = 'Không Tìm Thấy Tài Khoản';
+                    errorDetail = 'Không tìm thấy tài khoản tương ứng với email này.';
+                } else {
+                    errorDetail = error.message;
+                }
+
+                content.innerHTML = `
+                    <div class="status-icon">❌</div>
+                    <div class="error-box">
+                        <h2 style="margin-bottom: 10px;">${errorMessage}</h2>
+                        <p>${errorDetail}</p>
+                        <div class="debug-info">
+                            <strong>Thông tin lỗi:</strong><br>
+                            Code: ${error.code || 'unknown'}<br>
+                            Message: ${error.message}
+                        </div>
+                    </div>
+                    <a href="login.html" class="btn">Quay lại đăng nhập</a>
+                `;
+            }
+        }
+
+        // Bắt đầu xác minh khi trang load
+        verifyEmail();
+    </script>
+</body>
+</html>
