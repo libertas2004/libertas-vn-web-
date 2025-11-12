@@ -125,6 +125,8 @@
             font-weight: 600;
             margin-top: 20px;
             transition: all 0.3s;
+            border: none;
+            cursor: pointer;
         }
 
         .btn:hover {
@@ -150,6 +152,18 @@
             color: #666;
             word-break: break-all;
         }
+
+        .resend-section {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+
+        .resend-section p {
+            margin-bottom: 15px;
+            color: #666;
+        }
     </style>
 </head>
 <body>
@@ -172,7 +186,8 @@
         import { 
             getAuth, 
             applyActionCode,
-            checkActionCode
+            checkActionCode,
+            sendEmailVerification
         } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
         import { 
             getDatabase, 
@@ -180,32 +195,32 @@
             update
         } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
 
+        // *** SỬA: Dùng config giống với index.html ***
         const firebaseConfig = {
-          apiKey: "AIzaSyAcxsweOtv-jvAVew4kjjiaSjlWz00F30M",
-          authDomain: "libertas-04.firebaseapp.com",
-          databaseURL: "https://libertas-04-default-rtdb.asia-southeast1.firebasedatabase.app",
-          projectId: "libertas-04",
-          storageBucket: "libertas-04.firebasestorage.app",
-          messagingSenderId: "315100108937",
-          appId: "1:315100108937:web:c1f73533fd87664a7d4e58"
+          apiKey: "AIzaSyARFIYfOSjGuohMKF1XxUXI9kK_lrJ-Scs",
+          authDomain: "libertas-vn84.firebaseapp.com",
+          databaseURL: "https://libertas-vn84-default-rtdb.asia-southeast1.firebasedatabase.app",
+          projectId: "libertas-vn84",
+          storageBucket: "libertas-vn84.firebasestorage.app",
+          messagingSenderId: "432510303391",
+          appId: "1:432510303391:web:23a454990ebf049d6536aa",
+          measurementId: "G-1BLTFRMDNP"
         };
         
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const database = getDatabase(app);
 
-        // Lấy oobCode từ URL - hỗ trợ nhiều format
+        // Lấy oobCode từ URL
         const urlParams = new URLSearchParams(window.location.search);
         let oobCode = urlParams.get('oobCode');
         let mode = urlParams.get('mode');
 
-        // Debug: Hiển thị URL parameters
         console.log('Full URL:', window.location.href);
-        console.log('Search params:', window.location.search);
         console.log('oobCode:', oobCode);
         console.log('mode:', mode);
 
-        // Kiểm tra nếu URL có format khác (từ Firebase deep link)
+        // Kiểm tra trong hash nếu không có trong query params
         if (!oobCode) {
             const hash = window.location.hash;
             if (hash) {
@@ -214,6 +229,28 @@
                 mode = hashParams.get('mode');
             }
         }
+
+        async function resendVerificationEmail() {
+            const currentUser = auth.currentUser;
+            if (!currentUser) {
+                alert('Vui lòng đăng nhập để gửi lại email xác minh.');
+                window.location.href = 'login.html';
+                return;
+            }
+
+            try {
+                await sendEmailVerification(currentUser, {
+                    url: window.location.origin + '/verify-email.html',
+                    handleCodeInApp: false
+                });
+                alert('Email xác minh mới đã được gửi! Vui lòng kiểm tra hộp thư của bạn.');
+            } catch (error) {
+                console.error('Resend error:', error);
+                alert('Không thể gửi lại email. Vui lòng thử lại sau.');
+            }
+        }
+
+        window.resendVerificationEmail = resendVerificationEmail;
 
         async function verifyEmail() {
             const content = document.getElementById('verifyContent');
@@ -224,12 +261,7 @@
                     <div class="error-box">
                         <h2 style="margin-bottom: 10px;">Link Không Hợp Lệ</h2>
                         <p>Không tìm thấy mã xác minh trong URL.</p>
-                        <div class="debug-info">
-                            <strong>Thông tin debug:</strong><br>
-                            URL: ${window.location.href}<br>
-                            Search: ${window.location.search}<br>
-                            Hash: ${window.location.hash}
-                        </div>
+                        <p style="margin-top: 10px; font-size: 14px;">Vui lòng kiểm tra lại link trong email hoặc yêu cầu gửi lại email xác minh.</p>
                     </div>
                     <a href="login.html" class="btn">Quay lại đăng nhập</a>
                 `;
@@ -281,13 +313,16 @@
                 console.error('Verify email error:', error);
                 let errorMessage = 'Xác minh email thất bại';
                 let errorDetail = '';
+                let showResend = false;
 
                 if (error.code === 'auth/expired-action-code') {
                     errorMessage = 'Link Đã Hết Hạn';
-                    errorDetail = 'Link xác minh email đã hết hạn. Vui lòng đăng nhập và yêu cầu gửi lại email xác minh.';
+                    errorDetail = 'Link xác minh email đã hết hạn.';
+                    showResend = true;
                 } else if (error.code === 'auth/invalid-action-code') {
                     errorMessage = 'Link Không Hợp Lệ';
-                    errorDetail = 'Link xác minh email không hợp lệ hoặc đã được sử dụng.';
+                    errorDetail = 'Link xác minh email không hợp lệ hoặc đã được sử dụng. Nếu bạn đã xác minh email rồi, vui lòng đăng nhập.';
+                    showResend = true;
                 } else if (error.code === 'auth/user-disabled') {
                     errorMessage = 'Tài Khoản Bị Vô Hiệu Hóa';
                     errorDetail = 'Tài khoản của bạn đã bị vô hiệu hóa.';
@@ -298,17 +333,23 @@
                     errorDetail = error.message;
                 }
 
+                let resendHtml = '';
+                if (showResend) {
+                    resendHtml = `
+                        <div class="resend-section">
+                            <p><strong>Cần link xác minh mới?</strong></p>
+                            <p style="font-size: 14px;">Vui lòng đăng nhập và yêu cầu gửi lại email xác minh từ trang hồ sơ của bạn.</p>
+                        </div>
+                    `;
+                }
+
                 content.innerHTML = `
                     <div class="status-icon">❌</div>
                     <div class="error-box">
                         <h2 style="margin-bottom: 10px;">${errorMessage}</h2>
                         <p>${errorDetail}</p>
-                        <div class="debug-info">
-                            <strong>Thông tin lỗi:</strong><br>
-                            Code: ${error.code || 'unknown'}<br>
-                            Message: ${error.message}
-                        </div>
                     </div>
+                    ${resendHtml}
                     <a href="login.html" class="btn">Quay lại đăng nhập</a>
                 `;
             }
