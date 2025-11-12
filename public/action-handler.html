@@ -341,6 +341,9 @@
                 await applyActionCode(auth, oobCode);
                 const email = info.data.email;
 
+                // *** LƯU EMAIL VÀO LOCALSTORAGE ĐỂ AUTO-FILL ***
+                localStorage.setItem('lastLoginEmail', email);
+
                 content.innerHTML = `
                     <div class="status-icon">✅</div>
                     <div class="success-box">
@@ -404,6 +407,9 @@
             try {
                 // Verify reset code và lấy email
                 const email = await verifyPasswordResetCode(auth, oobCode);
+
+                // *** LƯU EMAIL VÀO LOCALSTORAGE ***
+                localStorage.setItem('lastLoginEmail', email);
 
                 content.innerHTML = `
                     <div class="message">

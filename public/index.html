@@ -527,7 +527,7 @@ const firebaseConfig = {
         
         // Cấu hình actionCodeSettings cho email verification và password reset
         const actionCodeSettings = {
-            url: window.location.origin + '/verify-email.html',
+            url: window.location.origin + '/action-handler.html',
             handleCodeInApp: false
         };
 
@@ -584,7 +584,7 @@ const firebaseConfig = {
 
                 // Gửi email xác minh với link về trang verify-email.html
                 await sendEmailVerification(user, {
-                    url: window.location.origin + '/verify-email.html',
+                    url: window.location.origin + '/action-handler.html',
                     handleCodeInApp: false
                 });
 
@@ -601,6 +601,8 @@ const firebaseConfig = {
                     createdAt: Date.now(),
                     lastLoginAt: Date.now()
                 });
+				// *** Lưu email đăng nhập lần cuối ***
+				localStorage.setItem('lastLoginEmail', email);
 
                 showModal('Thành Công', 'Đăng ký thành công! Vui lòng kiểm tra email để xác minh tài khoản. Link xác minh sẽ chuyển bạn về trang web này.');
                 
@@ -641,7 +643,9 @@ const firebaseConfig = {
 
                 const userCredential = await signInWithEmailAndPassword(auth, email, password);
                 const user = userCredential.user;
-
+				// *** Lưu email đăng nhập lần cuối ***
+                localStorage.setItem('lastLoginEmail', email);
+                    
                 // Cập nhật emailVerified trong database
                 await update(ref(database, 'users/' + user.uid), {
                     lastLoginAt: Date.now(),
@@ -686,6 +690,8 @@ const firebaseConfig = {
                 const result = await signInWithPopup(auth, googleProvider);
                 const user = result.user;
                 const credential = GoogleAuthProvider.credentialFromResult(result);
+                // *** Lưu email đăng nhập lần cuối ***
+				//localStorage.setItem('lastLoginEmail', user.email);
                 const accessToken = credential.accessToken;
 
                 const userRef = ref(database, 'users/' + user.uid);
@@ -803,7 +809,7 @@ const firebaseConfig = {
             try {
                 // Gửi email reset password với link về reset-password.html
                 await sendPasswordResetEmail(auth, email, {
-                    url: window.location.origin + '/reset-password.html',
+                    url: window.location.origin + '/action-handler.html',
                     handleCodeInApp: false
                 });
                 showModal('Thành Công', 'Email đặt lại mật khẩu đã được gửi! Vui lòng kiểm tra hộp thư và click vào link để đặt lại mật khẩu. Link sẽ chuyển bạn về trang web này.');
@@ -849,6 +855,14 @@ const firebaseConfig = {
             document.getElementById('registerForm').classList.add('active');
             document.getElementById('headerTitle').textContent = 'Tạo Tài Khoản';
             document.getElementById('headerSubtitle').textContent = 'Đăng ký để bắt đầu';
+
+            // *** THÊM ĐOẠN NÀY ***
+            // Auto-fill email vào form đăng ký nếu có
+            /*const lastLoginEmail = localStorage.getItem('lastLoginEmail');
+            const registerEmailInput = document.getElementById('registerEmail');
+            if (lastLoginEmail && registerEmailInput && !registerEmailInput.value) {
+                registerEmailInput.value = lastLoginEmail;
+            }*/
         }
 
         function showLoginForm() {
@@ -856,6 +870,14 @@ const firebaseConfig = {
             document.getElementById('loginForm').classList.add('active');
             document.getElementById('headerTitle').textContent = 'Chào Mừng Trở Lại';
             document.getElementById('headerSubtitle').textContent = 'Đăng nhập để tiếp tục';
+
+            // *** THÊM ĐOẠN NÀY ***
+            // Auto-fill email vào form đăng nhập nếu có
+            const lastLoginEmail = localStorage.getItem('lastLoginEmail');
+            const loginEmailInput = document.getElementById('loginEmail');
+            if (lastLoginEmail && loginEmailInput) {
+                loginEmailInput.value = lastLoginEmail;
+            }
         }
 
         function showModal(title, message) {
@@ -909,6 +931,23 @@ const firebaseConfig = {
             } else {
                 errorDiv.classList.remove('show');
                 this.style.borderColor = '#e0e0e0';
+            }
+        });
+        // Auto-fill email khi trang load
+        window.addEventListener('DOMContentLoaded', function() {
+            const loginEmailInput = document.getElementById('loginEmail');
+
+            const lastLoginEmail = localStorage.getItem('lastLoginEmail');
+
+            if (lastLoginEmail && loginEmailInput) { // Gộp 2 điều kiện
+                loginEmailInput.value = lastLoginEmail;
+
+                const passwordInput = document.getElementById('loginPassword');
+                if (passwordInput) {
+                    setTimeout(() => {
+                        passwordInput.focus();
+                    }, 100);
+                }
             }
         });
     </script>
