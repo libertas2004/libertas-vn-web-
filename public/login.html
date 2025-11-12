@@ -591,14 +591,16 @@ const firebaseConfig = {
 
                 await setDoc(doc(db, 'users', user.uid), {
                     userID: user.uid,
+                    email: user.email,
+                    emailVerified: false,
+                    provider: 'email',
                     lastName: lastName,
                     firstName: firstName,
-                    email: user.email,
-                    avatar: user.photoURL || '',
+                    phoneNumber: '',
+                    cccd: '',
                     birthDate: '',
                     gender: '',
-                    provider: 'email',
-                    emailVerified: false,
+                    avatar: '',
                     createdAt: serverTimestamp(),
                     lastLoginAt: serverTimestamp()
                 });
@@ -720,8 +722,12 @@ const firebaseConfig = {
                     }
                     
                     if (data.genders && data.genders.length > 0) {
-                        gender = data.genders[0].value;
-                    }
+                            const genderValue = data.genders[0].value;
+                            // Map Google gender to Vietnamese
+                            if (genderValue === 'male') gender = 'Nam';
+                            else if (genderValue === 'female') gender = 'Nữ';
+                            else gender = 'Khác';
+                        }
                     
                 } catch (apiError) {
                     console.log('Không thể lấy thông tin từ Google People API:', apiError);
@@ -734,18 +740,20 @@ const firebaseConfig = {
                 if (!userDoc.exists()) {
                     await setDoc(userDocRef, {
                         userID: user.uid,
+                        email: user.email,
+                        emailVerified: user.emailVerified,
+                        provider: 'google',
                         lastName: lastName,
                         firstName: firstName,
-                        email: user.email,
-                        avatar: user.photoURL || '',
+                        phoneNumber: '',
+                        cccd: '',
                         birthDate: birthDate,
                         gender: gender,
-                        provider: 'google',
-                        emailVerified: user.emailVerified,
+                        avatar: user.photoURL || '',
                         createdAt: serverTimestamp(),
                         lastLoginAt: serverTimestamp()
                     });
-                } else {
+				} else {
                     const updateData = {
                         lastLoginAt: serverTimestamp(),
                         emailVerified: user.emailVerified
