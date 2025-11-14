@@ -1796,136 +1796,50 @@
 
         window.handleSubmitCourt = async function(event) {
             event.preventDefault();
-
-            // Kiểm tra user
+            
             if (!currentUser || !currentUserData) {
                 alert('Vui lòng đăng nhập');
                 return;
             }
-
-            // Kiểm tra các trường bắt buộc
-            const courtName = document.getElementById('courtName').value.trim();
-            const courtType = document.querySelector('input[name="courtType"]:checked');
-            const ownerName = document.getElementById('ownerName').value.trim();
-            const ownerPhone = document.getElementById('ownerPhone').value.trim();
-            const ownerCCCD = document.getElementById('ownerCCCD').value.trim();
-            const province = document.getElementById('province').value;
-            const district = document.getElementById('district').value;
-            const ward = document.getElementById('ward').value;
-            const streetNumber = document.getElementById('streetNumber').value.trim();
-
-            // Validate từng trường
-            if (!courtName) {
-                alert('Vui lòng nhập tên sân');
-                return;
-            }
-
-            if (!courtType) {
-                alert('Vui lòng chọn loại sân');
-                return;
-            }
-
-            if (!uploadedImages.cover) {
-                alert('Vui lòng tải ảnh bìa');
-                return;
-            }
-
-            if (!uploadedImages.logo) {
-                alert('Vui lòng tải logo');
-                return;
-            }
-
-            if (!ownerName) {
-                alert('Vui lòng nhập tên chủ sân');
-                return;
-            }
-
-            if (!ownerPhone) {
-                alert('Vui lòng nhập số điện thoại');
-                return;
-            }
-
-            if (!ownerCCCD) {
-                alert('Vui lòng nhập số CCCD');
-                return;
-            }
-
-            if (!uploadedImages.cccdFront || !uploadedImages.cccdBack) {
-                alert('Vui lòng tải đầy đủ 2 mặt CCCD');
-                return;
-            }
-
-            if (!uploadedImages.license) {
-                alert('Vui lòng tải giấy phép kinh doanh');
-                return;
-            }
-
-            if (!province || !district || !ward) {
-                alert('Vui lòng chọn đầy đủ địa chỉ');
-                return;
-            }
-
-            if (!streetNumber) {
-                alert('Vui lòng nhập số nhà');
-                return;
-            }
-
-            // Kiểm tra số lượng sân
-            const badmintonCount = parseInt(document.getElementById('badmintonCount').value) || 0;
-            const pickleballCount = parseInt(document.getElementById('pickleballCount').value) || 0;
-
-            if (badmintonCount === 0 && pickleballCount === 0) {
-                alert('Vui lòng nhập số lượng sân');
-                return;
-            }
-
-            // Kiểm tra pricing
-            const pricing = collectPricingData();
-            if (pricing.length === 0) {
-                alert('Vui lòng thêm ít nhất một khung giờ giá');
-                return;
-            }
-
-            console.log('Validation passed, proceeding to submit...');
-
+            
             const submitBtn = document.getElementById('submitCourtBtn');
             const submitBtnText = document.getElementById('submitBtnText');
             const originalText = submitBtnText.textContent;
-
+            
             submitBtn.disabled = true;
             submitBtnText.innerHTML = '<span class="loading-spinner"></span> Đang xử lý...';
-
+            
             try {
-                // Upload tất cả ảnh
                 const coverURL = await uploadImage(uploadedImages.cover, 'court-covers');
                 const logoURL = await uploadImage(uploadedImages.logo, 'court-logos');
                 const cccdFrontURL = await uploadImage(uploadedImages.cccdFront, 'cccd');
                 const cccdBackURL = await uploadImage(uploadedImages.cccdBack, 'cccd');
                 const licenseURL = await uploadImage(uploadedImages.license, 'licenses');
-
+                
                 const provinceSelect = document.getElementById('province');
                 const districtSelect = document.getElementById('district');
                 const wardSelect = document.getElementById('ward');
-
+                
                 const provinceName = provinceSelect.options[provinceSelect.selectedIndex].text;
                 const districtName = districtSelect.options[districtSelect.selectedIndex].text;
                 const wardName = wardSelect.options[wardSelect.selectedIndex].text;
-
+                const streetNumber = document.getElementById('streetNumber').value.trim();
+                
                 const courtData = {
-                    courtName: courtName,
+                    courtName: document.getElementById('courtName').value.trim(),
                     logo: logoURL,
                     coverImage: coverURL,
-                    courtType: courtType.value,
-                    badmintonCount: badmintonCount,
-                    pickleballCount: pickleballCount,
+                    courtType: document.querySelector('input[name="courtType"]:checked').value,
+                    badmintonCount: parseInt(document.getElementById('badmintonCount').value) || 0,
+                    pickleballCount: parseInt(document.getElementById('pickleballCount').value) || 0,
                     openTime: document.getElementById('openTime').value,
                     closeTime: document.getElementById('closeTime').value,
-                    pricing: pricing,
+                    pricing: collectPricingData(),
                     specialDaysPricing: collectSpecialDaysPricing(),
                     ownerID: currentUser.uid,
-                    ownerName: ownerName,
-                    ownerPhone: ownerPhone,
-                    ownerCCCD: ownerCCCD,
+                    ownerName: document.getElementById('ownerName').value.trim(),
+                    ownerPhone: document.getElementById('ownerPhone').value.trim(),
+                    ownerCCCD: document.getElementById('ownerCCCD').value.trim(),
                     cccdImageFront: cccdFrontURL,
                     cccdImageBack: cccdBackURL,
                     businessLicense: licenseURL,
@@ -1937,14 +1851,14 @@
                     createdBy: currentUser.uid,
                     createdAt: serverTimestamp()
                 };
-
+                
                 if (currentUserData.role === 'admin') {
                     courtData.status = 'approved';
                     courtData.approvedAt = serverTimestamp();
                     courtData.approvedBy = currentUser.uid;
-
+                    
                     await addDoc(collection(db, 'courts'), courtData);
-
+                    
                     await addDoc(collection(db, 'notifications'), {
                         userID: currentUser.uid,
                         type: 'court_created',
@@ -1954,18 +1868,18 @@
                         read: false,
                         createdAt: serverTimestamp()
                     });
-
+                    
                     alert('Thêm sân thành công!');
                 } else {
                     courtData.status = 'pending';
-
+                    
                     const requestDoc = await addDoc(collection(db, 'courtRequests'), {
                         courtData: courtData,
                         requestedBy: currentUser.uid,
                         requestedAt: serverTimestamp(),
                         status: 'pending'
                     });
-
+                    
                     await addDoc(collection(db, 'notifications'), {
                         userID: currentUser.uid,
                         type: 'request_sent',
@@ -1976,37 +1890,15 @@
                         read: false,
                         createdAt: serverTimestamp()
                     });
-
-                    const adminsQuery = query(collection(db, 'users'), where('role', '==', 'admin'));
-                    const adminsSnapshot = await getDocs(adminsQuery);
-
-                    const adminNotifications = [];
-                    adminsSnapshot.forEach((adminDoc) => {
-                        adminNotifications.push(
-                            addDoc(collection(db, 'notifications'), {
-                                userID: adminDoc.id,
-                                type: 'new_request',
-                                title: 'Yêu cầu tạo sân mới',
-                                message: `${courtData.ownerName} đã gửi yêu cầu tạo sân "${courtData.courtName}". Vui lòng kiểm tra và duyệt.`,
-                                courtData: courtData,
-                                requestID: requestDoc.id,
-                                requestedBy: currentUser.uid,
-                                read: false,
-                                createdAt: serverTimestamp()
-                            })
-                        );
-                    });
-
-                    await Promise.all(adminNotifications);
-
+                    
                     alert('Gửi yêu cầu thành công! Vui lòng chờ admin duyệt.');
                 }
-
+                
                 closeAddCourtModal();
                 await loadCourts();
                 await loadNotifications();
                 await updateNotificationBadge();
-
+                
             } catch (error) {
                 console.error('Error submitting court:', error);
                 alert('Có lỗi xảy ra: ' + error.message);
